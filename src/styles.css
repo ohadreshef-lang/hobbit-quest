@@ -79,13 +79,19 @@ body {
 }
 
 .scene-art {
-  font-size: 2.4rem;
-  text-align: center;
-  padding: 1rem;
   background: var(--panel-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  letter-spacing: 0.3rem;
+  overflow: hidden;
+  aspect-ratio: 2 / 1;
   user-select: none;
+  line-height: 0;
+}
+
+.scene-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .room-name {

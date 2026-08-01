@@ -35,7 +35,9 @@ export function grabElements(): UIElements {
 export function render(el: UIElements, state: GameState, onIntent: Intent): void {
   const room = currentRoom(state);
 
-  el.sceneArt.textContent = artFor(room.art);
+  // artFor returns author-authored inline SVG (never user input), so
+  // assigning innerHTML here is safe and lets the vignette render.
+  el.sceneArt.innerHTML = artFor(room.art);
   el.roomName.textContent = room.name;
 
   renderLog(el.log, state.log);
