@@ -16,7 +16,7 @@ import { execute } from '../actions/executor';
 import { strike } from '../actions/combat';
 import { describeLocation } from '../narration/describe';
 import { name, Name } from '../narration/events';
-import { buildWorld } from '../content/m4';
+import { buildWorld } from '../content/preservation';
 import { serialize, deserialize } from '../persistence/save';
 import { DIRECTIONS } from '../world/types';
 import { randInt } from '../world/rng';
@@ -37,6 +37,7 @@ export class Game {
     this.state = build();
     this.state.discovered.add(this.state.currentLocationId);
     this.state.log.push(...describeLocation(this.state));
+    if (this.state.intro) this.state.log.push(...this.state.intro);
   }
 
   /** Handle one line of player input; returns the lines to append. */
@@ -112,6 +113,8 @@ export class Game {
       case 'undo': return [this.doUndo()];
       case 'hint': return [this.doHint()];
       case 'map': return [this.doMap()];
+      case 'listen': return this.doListen();
+      case 'hide': return this.doHide();
       default: {
         const result = execute(this.state, action);
         return this.tick(result.lines, result.turnsConsumed > 0);
@@ -119,19 +122,34 @@ export class Game {
     }
   }
 
-  /** Attack an NPC; it may strike back, and you can die (spec §12). */
+  /** Attack an NPC; a companion may help, it may strike back, you can die. */
   private doKill(action: SemanticAction): LogLine[] {
     const target = entity(this.state, action.directObjectIds[0] ?? '');
     if (!target) return [err('Attack what?')];
     const player = entity(this.state, PLAYER_ID)!;
     const weapon = action.indirectObjectId ? entity(this.state, action.indirectObjectId) : undefined;
+    const here = this.state.currentLocationId;
     const lines: LogLine[] = [];
 
     const blow = strike(this.state, player, target, weapon);
     lines.push(...blow.lines.map((t) => action_line(t)));
+    let killed = blow.killed;
+
+    // A sworn companion fighting at your side lends a blow of their own.
+    if (!killed) {
+      const ally = Object.values(this.state.entities).find(
+        (e) => e.id !== PLAYER_ID && e.agent && e.states.has('alive') &&
+          e.agent.knowledge.has('follow') && e.locationId === here,
+      );
+      if (ally) {
+        const help = strike(this.state, ally, target);
+        lines.push(...help.lines.map((t) => event(t)));
+        killed = killed || help.killed;
+      }
+    }
 
     // Survivors of an unfriendly nature hit back.
-    if (!blow.killed && target.agent && (target.agent.aggression ?? 0) > 30) {
+    if (!killed && target.agent && (target.agent.aggression ?? 0) > 30) {
       const back = strike(this.state, target, player);
       lines.push(...back.lines.map((t) => event(t)));
     }
@@ -271,6 +289,18 @@ export class Game {
       out.push(sys('(You have uncovered the moon-runes. +2.5%)'));
     }
 
+    // Trolls are creatures of the night: caught by daylight, they turn to
+    // stone — but only once you've reached them (else they petrify unseen).
+    if (!isNight(s)) {
+      for (const e of Object.values(s.entities)) {
+        if (e.names.includes('troll') && e.states.has('alive') && e.locationId && s.discovered.has(e.locationId)) {
+          e.states.delete('alive'); e.states.add('dead');
+          if (e.agent) e.agent.energy = 0;
+          out.push(event(`Grey daylight touches ${e.display}, and with a groan it stiffens into cold stone.`));
+        }
+      }
+    }
+
     const dragon = entity(s, 'dragon');
     if (dragon && dragon.states.has('alive')) {
       const treasure = entity(s, 'treasure');
@@ -282,11 +312,14 @@ export class Game {
         out.push(event('A roar shakes the mountain! The dragon wakes, bursts from its lair, and hurls itself toward the lake-town below. (+2.5%)'));
       }
       // At the town, an archer with the black arrow can bring it down — even
-      // off-screen, while you are elsewhere (spec §11).
+      // off-screen, while you are elsewhere (spec §11). Where a thrush exists,
+      // the archer must first learn of the bare patch (spec §13).
       if (s.flags['dragon-roused'] && !s.flags['dragon-slain'] && dragon.locationId === 'laketown') {
         const archer = entity(s, 'archer');
         const arrow = entity(s, 'arrow');
-        if (archer && archer.states.has('alive') && archer.locationId === 'laketown' && arrow && arrow.locationId === 'archer') {
+        const needsWeakspot = Object.values(s.entities).some((e) => e.names.includes('thrush'));
+        const knowsWeakspot = !needsWeakspot || Boolean(s.flags['weakspot-known']);
+        if (knowsWeakspot && archer && archer.states.has('alive') && archer.locationId === 'laketown' && arrow && arrow.locationId === 'archer') {
           s.flags['dragon-slain'] = true;
           dragon.states.delete('alive'); dragon.states.add('dead');
           dragon.agent && (dragon.agent.energy = 0);
@@ -315,6 +348,13 @@ export class Game {
     const here = this.state.currentLocationId;
     for (const e of Object.values(this.state.entities)) {
       if (e.id === PLAYER_ID || !e.agent || !e.states.has('alive')) continue;
+
+      // A sworn companion keeps pace with you wherever you go.
+      if (e.agent.knowledge.has('follow')) {
+        if (e.locationId !== here) { e.locationId = here; out.push(event(`${Name(e)} keeps close at your side.`)); }
+        continue;
+      }
+
       const step = e.agent.behavior[e.agent.behaviorIndex % e.agent.behavior.length];
       e.agent.behaviorIndex += 1;
       const wasHere = e.locationId === here;
@@ -423,6 +463,28 @@ export class Game {
       .map((id) => this.state.locations[id]?.title)
       .filter(Boolean);
     return sys(`Places you have seen: ${visited.join(' · ')}.`);
+  }
+
+  /** Listen: a thrush at the mountain reveals the dragon's bare patch. */
+  private doListen(): LogLine[] {
+    const thrush = Object.values(this.state.entities).find(
+      (e) => e.names.includes('thrush') && e.locationId === this.state.currentLocationId,
+    );
+    if (!thrush) return this.tick([action_line('You listen. Wind, and your own breath.')], true);
+    this.state.flags['weakspot-known'] = true;
+    return this.tick([action_line(
+      'The old thrush trills, slow and deliberate, and somehow you understand: the dragon has one bare patch on its left breast, above the heart. Anyone who could tell the archer...')], true);
+  }
+
+  /** Hide: climbing into an empty barrel opens the river route out. */
+  private doHide(): LogLine[] {
+    const barrel = Object.values(this.state.entities).find(
+      (e) => e.names.includes('barrel') && e.locationId === this.state.currentLocationId,
+    );
+    if (!barrel) return [err('There is nothing here to hide in.')];
+    this.state.flags['in-barrel'] = true;
+    return this.tick([action_line(
+      'You curl into the empty barrel and pull the lid half-shut. It rocks, tips, and with a splash the current takes you — out and away down the dark river.')], true);
   }
 
   private awardLocation(locId: string): void {

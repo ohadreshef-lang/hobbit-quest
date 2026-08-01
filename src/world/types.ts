@@ -160,6 +160,8 @@ export interface GameState {
    * `containerId`. Undefined worlds have no treasure victory.
    */
   victory?: { itemId: string; containerId?: string | undefined } | undefined;
+  /** Optional opening briefing appended after the first room description. */
+  intro?: LogLine[] | undefined;
   /** Parser reference memory (spec §8 reference resolution). */
   lastSingularId?: string | undefined;
   lastPluralIds?: string[] | undefined;

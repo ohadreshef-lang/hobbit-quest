@@ -42,6 +42,8 @@ export const VERBS: Record<string, string> = {
   tie: 'tie', fasten: 'tie', attach: 'tie',
   kill: 'kill', attack: 'kill', fight: 'kill', hit: 'kill',
   cross: 'cross',
+  listen: 'listen', hear: 'listen',
+  hide: 'hide',
   say: 'say', tell: 'say', ask: 'say',
   go: 'go', walk: 'go', move: 'go', enter: 'go',
   inventory: 'inventory', i: 'inventory', inv: 'inventory',

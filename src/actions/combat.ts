@@ -38,7 +38,7 @@ export function strike(state: GameState, attacker: Entity, target: Entity, weapo
     return { lines, killed: false };
   }
 
-  const damage = randInt(state, 8, 20) + Math.round(power(attacker, weapon));
+  const damage = randInt(state, 6, 14) + Math.round(power(attacker, weapon));
   target.agent.energy = Math.max(0, target.agent.energy - damage);
   const hurt = target.agent.energy <= 0;
 

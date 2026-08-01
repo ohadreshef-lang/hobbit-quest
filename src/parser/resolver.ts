@@ -113,7 +113,7 @@ export function resolveClause(state: GameState, clause: Clause, actorId = PLAYER
   };
 
   // Movement & meta verbs need no object.
-  if (['go', 'look', 'inventory', 'wait', 'score', 'help', 'undo', 'hint', 'map', 'mode', 'save', 'load'].includes(clause.verb)) {
+  if (['go', 'look', 'inventory', 'wait', 'score', 'help', 'undo', 'hint', 'map', 'mode', 'save', 'load', 'listen', 'hide'].includes(clause.verb)) {
     return { ok: true, action: base };
   }
 
