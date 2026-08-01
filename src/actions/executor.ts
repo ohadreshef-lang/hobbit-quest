@@ -203,6 +203,11 @@ function doWear(state: GameState, actor: Entity, id: string | undefined): Action
   if (e.states.has('worn')) return fail('already', `You're already wearing ${ev.name(e)}.`);
   e.locationId = actor.id;
   e.states.add('worn');
+  // A ring of invisibility hides its wearer from perception (spec §13).
+  if (e.capabilities.has('invisibility')) {
+    actor.states.add('invisible');
+    return ok(`${ev.wore(actor, e)} The world dims and slides sideways — you have faded from sight.`);
+  }
   return ok(ev.wore(actor, e));
 }
 
@@ -211,6 +216,10 @@ function doRemove(state: GameState, actor: Entity, id: string | undefined): Acti
   if (!e) return fail('missing-object', 'Remove what?');
   if (!e.states.has('worn')) return fail('not-worn', `You aren't wearing ${ev.name(e)}.`);
   e.states.delete('worn');
+  if (e.capabilities.has('invisibility')) {
+    actor.states.delete('invisible');
+    return ok(`${ev.removed(actor, e)} The world snaps back into focus; you are visible again.`);
+  }
   return ok(ev.removed(actor, e));
 }
 

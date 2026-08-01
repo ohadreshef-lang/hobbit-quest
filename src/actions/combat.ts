@@ -12,9 +12,12 @@ export interface Strike {
   killed: boolean;
 }
 
-/** Effective attack power: weapon solidity if armed, else a weak bare hand. */
+/**
+ * Effective attack power: a wielded weapon's solidity if armed, else the
+ * attacker's own strength (a bare fist is weak; a dragon's claws are not).
+ */
 function power(attacker: Entity, weapon?: Entity): number {
-  const base = weapon?.capabilities.has('weapon') ? weapon.solidity : 2;
+  const base = weapon?.capabilities.has('weapon') ? weapon.solidity : (attacker.strength ?? 2);
   const vigor = attacker.agent ? attacker.agent.energy / 50 : 1;
   return base * vigor;
 }

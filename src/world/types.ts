@@ -64,7 +64,7 @@ export type EntityState =
   | 'broken' | 'lit' | 'worn'
   | 'tied' | 'transparent' | 'opaque'
   | 'liquid' | 'edible' | 'alive' | 'dead'
-  | 'fixed' | 'runic';
+  | 'fixed' | 'runic' | 'invisible';
 
 export type Capability =
   | 'takeable'    // can be picked up
@@ -77,7 +77,8 @@ export type Capability =
   | 'edible'      // can be eaten
   | 'breakable'   // can be smashed with a solid tool
   | 'anchor'      // a fixture a rope can be tied to
-  | 'gap';        // an obstacle a solid object can bridge
+  | 'gap'         // an obstacle a solid object can bridge
+  | 'invisibility'; // worn, it hides the wearer from perception
 
 /** Agency layered on top of an Entity (spec §11). */
 export interface Agent {
@@ -154,6 +155,11 @@ export interface GameState {
   timeOfDay: number;
   /** Locations the player has visited (for the Guided-mode map). */
   discovered: Set<string>;
+  /**
+   * How this world is won: carry `itemId` (no container) or place it inside
+   * `containerId`. Undefined worlds have no treasure victory.
+   */
+  victory?: { itemId: string; containerId?: string | undefined } | undefined;
   /** Parser reference memory (spec §8 reference resolution). */
   lastSingularId?: string | undefined;
   lastPluralIds?: string[] | undefined;

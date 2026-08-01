@@ -44,8 +44,9 @@ export type Resolution = { ok: true; action: SemanticAction } | { ok: false; iss
 
 function matchesNoun(e: Entity, np: NounPhrase): boolean {
   if (!np.noun) return false;
-  const nounHit = e.names.includes(np.noun) || e.display.toLowerCase().includes(np.noun);
-  if (!nounHit) return false;
+  // Match the head noun against declared names only — matching the whole
+  // display string would make "gold" also hit "a plain gold ring".
+  if (!e.names.includes(np.noun)) return false;
   return np.adjectives.every(
     (adj) => e.adjectives.includes(adj) || e.names.includes(adj),
   );

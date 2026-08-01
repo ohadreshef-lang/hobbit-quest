@@ -16,7 +16,7 @@ import { execute } from '../actions/executor';
 import { strike } from '../actions/combat';
 import { describeLocation } from '../narration/describe';
 import { name, Name } from '../narration/events';
-import { buildWorld } from '../content/m3';
+import { buildWorld } from '../content/m4';
 import { serialize, deserialize } from '../persistence/save';
 import { DIRECTIONS } from '../world/types';
 import { randInt } from '../world/rng';
@@ -261,15 +261,48 @@ export class Game {
     return [...lines, ...daynight, ...npc, ...story, ...end];
   }
 
-  /** Award progress for story discoveries in 2.5% steps (spec §5). */
+  /** Award progress and drive scripted story beats (spec §5, §13). */
   private checkStory(): LogLine[] {
+    const s = this.state;
     const out: LogLine[] = [];
-    if (this.state.flags['map-read'] && !this.state.scoredEvents.has('map-read')) {
-      this.state.scoredEvents.add('map-read');
-      this.state.score = Math.min(100, this.state.score + 2.5);
-      out.push(sys('(You have uncovered the hidden path. +2.5%)'));
+
+    if (s.flags['map-read'] && !s.scoredEvents.has('map-read')) {
+      this.award('map-read', 2.5);
+      out.push(sys('(You have uncovered the moon-runes. +2.5%)'));
     }
+
+    const dragon = entity(s, 'dragon');
+    if (dragon && dragon.states.has('alive')) {
+      const treasure = entity(s, 'treasure');
+      // Lifting the hoard wakes the dragon; it storms off to the town.
+      if (!s.flags['dragon-roused'] && treasure && treasure.locationId === PLAYER_ID) {
+        s.flags['dragon-roused'] = true;
+        dragon.locationId = 'laketown';
+        this.award('rouse', 2.5);
+        out.push(event('A roar shakes the mountain! The dragon wakes, bursts from its lair, and hurls itself toward the lake-town below. (+2.5%)'));
+      }
+      // At the town, an archer with the black arrow can bring it down — even
+      // off-screen, while you are elsewhere (spec §11).
+      if (s.flags['dragon-roused'] && !s.flags['dragon-slain'] && dragon.locationId === 'laketown') {
+        const archer = entity(s, 'archer');
+        const arrow = entity(s, 'arrow');
+        if (archer && archer.states.has('alive') && archer.locationId === 'laketown' && arrow && arrow.locationId === 'archer') {
+          s.flags['dragon-slain'] = true;
+          dragon.states.delete('alive'); dragon.states.add('dead');
+          dragon.agent && (dragon.agent.energy = 0);
+          this.award('slay', 5);
+          out.push(event('Far off, a single black arrow finds the dragon\'s bare heart. The great beast falls from the sky into the lake, and is still. (+5%)'));
+        }
+      }
+    }
+
     return out;
+  }
+
+  private award(id: string, pct: number): void {
+    if (this.state.scoredEvents.has(id)) return;
+    this.state.scoredEvents.add(id);
+    this.state.score = Math.min(100, this.state.score + pct);
   }
 
   /**
@@ -292,7 +325,11 @@ export class Game {
         if (exits.length) e.locationId = exits[randInt(this.state, 0, exits.length - 1)];
       } else if (step === 'hunt' && e.locationId === here && (e.agent.aggression ?? 0) > 30) {
         const player = entity(this.state, PLAYER_ID)!;
-        out.push(...strike(this.state, e, player).lines.map((t) => event(t)));
+        if (player.states.has('invisible')) {
+          out.push(event(`${Name(e)} sniffs the air, uneasy, but cannot find you.`));
+        } else {
+          out.push(...strike(this.state, e, player).lines.map((t) => event(t)));
+        }
       } else if (step === 'speak' && e.locationId === here) {
         out.push(event(npcFlavor(e.display, this.state.turn)));
       }
@@ -304,7 +341,7 @@ export class Game {
     return out;
   }
 
-  /** End the tale on death or on claiming the treasure (spec §5, §20). */
+  /** End the tale on death or on satisfying the world's victory (spec §5, §20). */
   private checkEnd(): LogLine[] {
     if (this.state.gameOver) return [];
     const player = entity(this.state, PLAYER_ID)!;
@@ -312,10 +349,19 @@ export class Game {
       this.state.gameOver = true; this.state.outcome = 'lose';
       return [sys('Your strength fails and the dark closes in. You have died.')];
     }
-    if (contentsOf(this.state, PLAYER_ID).some((e) => e.id === 'treasure')) {
-      this.state.gameOver = true; this.state.outcome = 'win';
-      this.state.score = Math.min(100, this.state.score + 10);
-      return [sys('You lift the hoard-gold free. Your quest is complete — you win!')];
+    const v = this.state.victory;
+    if (v) {
+      const item = entity(this.state, v.itemId);
+      const won = item && (v.containerId
+        ? item.locationId === v.containerId
+        : item.locationId === PLAYER_ID);
+      if (won) {
+        this.state.gameOver = true; this.state.outcome = 'win';
+        this.state.score = Math.min(100, this.state.score + 10);
+        return [sys(v.containerId
+          ? 'You set the hoard-gold safe in the chest, home at last. Your quest is complete — you win!'
+          : 'You lift the hoard-gold free. Your quest is complete — you win!')];
+      }
     }
     return [];
   }
@@ -400,8 +446,8 @@ export class Game {
   private helpText(): LogLine {
     return sys([
       'Type commands in plain English. Try:',
-      '"take map", "take lamp", "go east", "light lamp", "read map",',
-      '"kill wolf with staff", "eat apple", "wait" (to pass time).',
+      '"take map", "go east", "read map", "wear ring", "light lamp",',
+      '"give arrow to archer", "take gold", "put gold in chest", "eat apple".',
       'Speak to others: say to sage "read map".',
       'Also: look, inventory, score, wait, save, load, help,',
       'and "mode guided" to unlock undo, hint, and map.',

@@ -109,8 +109,27 @@ side dell) — adding the story systems:
 Backed by **42 tests** across the parser, physics, combat, determinism,
 save-fidelity, day/night, map-reading, scoring, and the mode features.
 
-Next milestones (from the rebuild spec §21):
+**Milestone 4 (the complete world & endgame) — done.** The region extends into
+a full arc — `… → eaves → tunnels → undergate → greatwood → elfhold →
+laketown → mountainfoot → [secret door] → lair` — and the whole quest is
+now winnable end to end:
 
-- [ ] **M4** — the full world, endgame, and victory
-- [ ] **M5** — emergence testing (10k seeded runs), accessibility, save migrations
+- **A ring of invisibility** found in the dark tunnels — worn, it hides you
+  from every hunter (the cave-creature, and the dragon itself).
+- **The mountain's secret door** opens only once the **moon-runes have been
+  read** — the payoff of M3's map interaction gates the endgame.
+- **The dragon endgame** — the beast kills any *visible* intruder in its hall;
+  slip past invisibly, lift the hoard, and the dragon wakes and flies to the
+  lake-town, where **an archer with the black arrow brings it down — off-screen
+  if you've already moved on**.
+- **The primary objective (spec §5)** — carry the hoard home and **put it in
+  the chest** where you began. That, not merely grabbing the gold, is the win.
+
+Backed by **52 tests**, including a **full-playthrough acceptance test** that
+completes the entire quest from a clean start (spec §20 #1).
+
+Next milestone (from the rebuild spec §21):
+
+- [ ] **M5** — stabilization: emergence testing (10k seeded unattended runs),
+      accessibility (screen-reader mode), and save migrations
 ```
