@@ -34,35 +34,53 @@ npm test           # run the engine test suite
 
 ## Architecture
 
+The codebase follows the module layout of the rebuild spec: a deterministic,
+rule-based parser feeding a shared action executor over an entity-component
+world. **Characters are entities with agency, not a privileged category** —
+player and NPC actions run through the *same* executor and the same physical
+rules.
+
 ```
 src/
-  engine/        # world-agnostic game engine
-    types.ts       core data model (Room, Item, NPC, GameState)
-    parser.ts      forgiving verb/noun/direction parser
-    engine.ts      command dispatch + turn loop
-    simulation.ts  the living-world tick (NPCs act each turn)
-  world/         # the content: what makes THIS game The Hobbit
-    rooms.ts       the map
-    items.ts       objects
-    npcs.ts        characters
-  ui/            # DOM rendering + the hybrid interactions
-    render.ts      full re-render after each turn
-    art.ts         scene-art table (emoji placeholders for now)
-  main.ts        # wiring: form input + click intents -> engine -> render
-  styles.css     # parchment theme, light/dark aware
+  world/
+    types.ts       entity-component data model (Entity, Agent, Location, GameState)
+    entities.ts    containment, scope/visibility, light, mass, reachability
+  parser/          # deterministic Inglish parser (no LLM in the command path)
+    vocabulary.ts    verb/preposition/adverb/quantifier word tables (data)
+    lexer.ts         tokenize; preserve quoted NPC speech
+    grammar.ts       clause segmentation + noun-phrase parsing
+    resolver.ts      bind phrases to entities: adjectives, IT/THEM, ALL/EXCEPT, ambiguity
+  actions/
+    executor.ts    one rule-checked executor for player AND NPC actions
+  narration/
+    describe.ts    location description assembly (text is authoritative)
+    events.ts      event-narration templates
+  content/
+    m1.ts          declarative, original-world content pack (no 1982 text/art)
+  engine/
+    game.ts        parse -> resolve -> execute -> narrate + world tick + clarification
+  ui/              # thin view + command history
+  main.ts          # wiring
 ```
 
-The **engine knows nothing about The Hobbit** — swap the `world/` data and
-it plays a different game. That separation is deliberate.
+The **engine knows nothing about the content** — swap the `content/` pack and
+the same parser and simulation play a different game (spec §3, §18).
 
 ## Status & roadmap
 
-This is the initial scaffold: a small, fully-playable slice (Bag End out to
-the trolls' clearing) that exercises every system end to end. Next up:
+**Milestone 1 (parser playground) — done.** One lit room, an original-world
+cast of objects, two containers, and one commandable NPC, exercising every
+parser feature end to end: adjectives, pronouns (`it`/`them`), `ALL`/`EXCEPT`,
+multi-command input, ambiguity clarification, and `SAY TO <npc> "…"`. Backed
+by 20 parser + physics tests.
 
-- [ ] Flesh out the full map and objects from the original quest
-- [ ] Deepen the NPC simulation (goals, combat, the "burglar" mechanic)
-- [ ] Real scene art in place of emoji placeholders
-- [ ] Save/restore, and an autosave to `localStorage`
-- [ ] Win/lose conditions and the Lonely Mountain endgame
+Next milestones (from the rebuild spec §21):
+
+- [ ] **M2** — simulation vertical slice: 5 rooms, darkness+light, rope/breakage,
+      food/energy, combat, one autonomous companion + one enemy, save/restore,
+      deterministic seeded replay, one obstacle with three valid solutions
+- [ ] **M3** — first journey region, day/night, score events, illustrations,
+      Classic vs Guided modes
+- [ ] **M4** — the full world, endgame, and victory
+- [ ] **M5** — emergence testing (10k seeded runs), accessibility, save migrations
 ```

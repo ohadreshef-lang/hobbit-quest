@@ -5,29 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A modern web port of the classic 1982 text adventure, The Hobbit."
+      content="A clean-room reconstruction of a 1982-style parser adventure: typed Inglish parser and a living world."
     />
-    <title>The Hobbit — Quest</title>
+    <title>Hobbit Quest — Parser Playground</title>
   </head>
   <body>
     <div id="app">
       <header class="topbar">
-        <h1>The Hobbit</h1>
-        <span class="subtitle">a text adventure, reforged</span>
+        <h1 id="loc-title" class="loc-title">A Comfortable Hall</h1>
+        <span id="score" class="score" aria-label="Progress score">Score 0%</span>
       </header>
       <main class="layout">
         <section class="scene" aria-label="Current location">
           <div id="scene-art" class="scene-art" aria-hidden="true"></div>
-          <h2 id="room-name" class="room-name"></h2>
           <div id="log" class="log" role="log" aria-live="polite"></div>
-          <div id="exits" class="exits" aria-label="Available exits"></div>
         </section>
-        <aside class="sidebar" aria-label="Inventory and objects">
-          <h3>You are carrying</h3>
-          <ul id="inventory" class="inventory"></ul>
-          <h3>You can see</h3>
-          <ul id="room-items" class="room-items"></ul>
-        </aside>
       </main>
       <form id="command-form" class="command-bar" autocomplete="off">
         <span class="prompt-glyph" aria-hidden="true">&gt;</span>
@@ -36,7 +28,8 @@
           class="command-input"
           type="text"
           name="command"
-          placeholder="Type a command, e.g. 'go west' or 'take rope'"
+          maxlength="128"
+          placeholder='Try: take the brass lamp   ·   open chest   ·   say to rowan "take lamp"'
           aria-label="Command input"
           autofocus
         />

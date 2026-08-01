@@ -38,16 +38,25 @@ body {
 .topbar {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: 0.75rem;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.5rem;
 }
 
-.topbar h1 {
+.topbar h1,
+.loc-title {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   letter-spacing: 0.04em;
   color: var(--accent);
+}
+
+.score {
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .subtitle {
@@ -110,6 +119,16 @@ body {
 
 .line {
   margin: 0 0 0.6rem;
+}
+.line--title {
+  color: var(--accent);
+  font-weight: 700;
+  margin-top: 0.4rem;
+}
+.line--command {
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 .line--room {
   color: var(--ink);
