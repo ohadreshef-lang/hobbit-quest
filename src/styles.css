@@ -92,9 +92,10 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  /* The classic ZX Spectrum screen ratio, 256 x 192. */
-  aspect-ratio: 4 / 3;
-  max-height: 340px;
+  /* Cap the width; the SVG's own 256x192 viewBox drives the 4:3 height
+     below — no reliance on CSS aspect-ratio, so it renders everywhere. */
+  width: 100%;
+  max-width: 440px;
   margin: 0 auto;
   user-select: none;
   line-height: 0;
@@ -104,7 +105,7 @@ body {
 .scene-art svg {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
 }
 
 .room-name {
