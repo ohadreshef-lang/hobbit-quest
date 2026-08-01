@@ -12,9 +12,13 @@ import {
 import { parse, resolveClause } from '../parser';
 import type { Ambiguity, Clause, ResolveFailure, SemanticAction } from '../parser';
 import { execute } from '../actions/executor';
+import { strike } from '../actions/combat';
 import { describeLocation } from '../narration/describe';
 import { name, Name } from '../narration/events';
-import { buildWorld } from '../content/m1';
+import { buildWorld } from '../content/m2';
+import { serialize, deserialize } from '../persistence/save';
+import { DIRECTIONS } from '../world/types';
+import { randInt } from '../world/rng';
 
 interface Pending {
   clause: Clause;
@@ -26,8 +30,8 @@ export class Game {
   state: GameState;
   private pending: Pending | undefined;
 
-  constructor() {
-    this.state = buildWorld();
+  constructor(build: () => GameState = buildWorld) {
+    this.state = build();
     this.state.log.push(...describeLocation(this.state));
   }
 
@@ -87,7 +91,11 @@ export class Game {
       case 'help': return this.tick([this.helpText()], false);
       case 'wait': return this.tick([action_line('Time passes.')], true);
       case 'go': return this.doGo(action);
+      case 'cross': return this.doCross();
       case 'say': return this.doSay(action);
+      case 'kill': return this.doKill(action);
+      case 'save': return [this.doSave()];
+      case 'load': return [this.doLoad()];
       default: {
         const result = execute(this.state, action);
         return this.tick(result.lines, result.turnsConsumed > 0);
@@ -95,13 +103,65 @@ export class Game {
     }
   }
 
+  /** Attack an NPC; it may strike back, and you can die (spec §12). */
+  private doKill(action: SemanticAction): LogLine[] {
+    const target = entity(this.state, action.directObjectIds[0] ?? '');
+    if (!target) return [err('Attack what?')];
+    const player = entity(this.state, PLAYER_ID)!;
+    const weapon = action.indirectObjectId ? entity(this.state, action.indirectObjectId) : undefined;
+    const lines: LogLine[] = [];
+
+    const blow = strike(this.state, player, target, weapon);
+    lines.push(...blow.lines.map((t) => action_line(t)));
+
+    // Survivors of an unfriendly nature hit back.
+    if (!blow.killed && target.agent && (target.agent.aggression ?? 0) > 30) {
+      const back = strike(this.state, target, player);
+      lines.push(...back.lines.map((t) => event(t)));
+    }
+    return this.tick(lines, true);
+  }
+
+  /** Cross the room's gated obstacle if a way now exists. */
+  private doCross(): LogLine[] {
+    const loc = currentLocation(this.state);
+    const dir = DIRECTIONS.find((d) => loc.gatedExits?.[d]);
+    if (!dir) return [err('There is nothing to cross here.')];
+    return this.doGo({ actorId: PLAYER_ID, verb: 'go', directObjectIds: [], direction: dir, raw: 'cross' });
+  }
+
   private doGo(action: SemanticAction): LogLine[] {
     if (!action.direction) return [err('Go where? Try a direction like "north".')];
-    const dest = currentLocation(this.state).exits[action.direction];
-    if (!dest) return [err(`You can't go ${action.direction} from here.`)];
+    const loc = currentLocation(this.state);
+    const pre: LogLine[] = [];
+
+    let dest = loc.exits[action.direction];
+    if (!dest) {
+      // Maybe it's a gated exit (a door to break, a ravine to bridge).
+      const gate = loc.gatedExits?.[action.direction];
+      if (!gate) return [err(`You can't go ${action.direction} from here.`)];
+      if (this.state.flags[gate.flag]) {
+        dest = gate.to;
+      } else if (this.friendlyCompanionHere()) {
+        // Solution 3: a strong, friendly companion helps you across.
+        const c = this.friendlyCompanionHere()!;
+        pre.push(event(`${Name(c)} braces against the far side and helps you across.`));
+        dest = gate.to;
+      } else {
+        return [err(gate.blocked)];
+      }
+    }
+
     this.state.currentLocationId = dest;
     this.awardLocation(dest);
-    return this.tick(describeLocation(this.state), true);
+    return this.tick([...pre, ...describeLocation(this.state)], true);
+  }
+
+  private friendlyCompanionHere() {
+    return Object.values(this.state.entities).find(
+      (e) => e.agent && e.states.has('alive') && e.locationId === this.state.currentLocationId &&
+        (e.agent.loyalty[PLAYER_ID] ?? 0) > 0,
+    );
   }
 
   /** SAY TO <npc> "<command>" — the NPC decides whether to comply (spec §8, §11). */
@@ -171,21 +231,75 @@ export class Game {
   private tick(lines: LogLine[], tookTurn: boolean): LogLine[] {
     if (!tookTurn) return lines;
     this.state.turn += 1;
-    return [...lines, ...this.tickNpcs()];
+    const npc = this.tickNpcs();
+    const end = this.checkEnd();
+    return [...lines, ...npc, ...end];
   }
 
-  /** Every living NPC gets one behaviour step; only co-located ones narrate. */
+  /**
+   * Every living NPC takes one behaviour step whether or not the player is
+   * watching — moves persist off-screen (spec §11). Only events in the
+   * player's room are narrated.
+   */
   private tickNpcs(): LogLine[] {
     const out: LogLine[] = [];
+    const here = this.state.currentLocationId;
     for (const e of Object.values(this.state.entities)) {
-      if (!e.agent || !e.states.has('alive')) continue;
+      if (e.id === PLAYER_ID || !e.agent || !e.states.has('alive')) continue;
       const step = e.agent.behavior[e.agent.behaviorIndex % e.agent.behavior.length];
       e.agent.behaviorIndex += 1;
-      if (e.locationId !== this.state.currentLocationId) continue;
-      if (step === 'speak') out.push(event(npcFlavor(e.display, this.state.turn)));
-      // (movement/other steps are simulated silently in M1's single room)
+      const wasHere = e.locationId === here;
+
+      if (step === 'move') {
+        const loc = this.state.locations[e.locationId ?? ''];
+        const exits = loc ? DIRECTIONS.map((d) => loc.exits[d]).filter((x): x is string => Boolean(x)) : [];
+        if (exits.length) e.locationId = exits[randInt(this.state, 0, exits.length - 1)];
+      } else if (step === 'hunt' && e.locationId === here && (e.agent.aggression ?? 0) > 30) {
+        const player = entity(this.state, PLAYER_ID)!;
+        out.push(...strike(this.state, e, player).lines.map((t) => event(t)));
+      } else if (step === 'speak' && e.locationId === here) {
+        out.push(event(npcFlavor(e.display, this.state.turn)));
+      }
+
+      const nowHere = e.locationId === here;
+      if (wasHere && !nowHere) out.push(event(`${Name(e)} wanders off.`));
+      else if (!wasHere && nowHere) out.push(event(`${Name(e)} arrives.`));
     }
     return out;
+  }
+
+  /** End the tale on death or on claiming the treasure (spec §5, §20). */
+  private checkEnd(): LogLine[] {
+    if (this.state.gameOver) return [];
+    const player = entity(this.state, PLAYER_ID)!;
+    if (player.agent && player.agent.energy <= 0) {
+      this.state.gameOver = true; this.state.outcome = 'lose';
+      return [sys('Your strength fails and the dark closes in. You have died.')];
+    }
+    if (contentsOf(this.state, PLAYER_ID).some((e) => e.id === 'treasure')) {
+      this.state.gameOver = true; this.state.outcome = 'win';
+      this.state.score = Math.min(100, this.state.score + 10);
+      return [sys('You lift the hoard-gold free. Your quest is complete — you win!')];
+    }
+    return [];
+  }
+
+  private doSave(): LogLine {
+    try {
+      const data = serialize(this.state);
+      if (typeof localStorage !== 'undefined') localStorage.setItem('hq-save', data);
+      return sys('Game saved.');
+    } catch { return err('Could not save the game.'); }
+  }
+
+  private doLoad(): LogLine {
+    if (typeof localStorage === 'undefined') return err('No saved game is available here.');
+    const data = localStorage.getItem('hq-save');
+    if (!data) return err('No saved game found.');
+    try {
+      this.state = deserialize(data);
+      return sys('Game restored.');
+    } catch { return err('That save could not be read.'); }
   }
 
   private awardLocation(locId: string): void {
@@ -208,11 +322,12 @@ export class Game {
 
   private helpText(): LogLine {
     return sys([
-      'Type commands in plain English. Examples:',
-      '"take the brass lamp", "open chest", "put ring in chest",',
-      '"take all except the sword", "examine it", "wear ring",',
-      'and speak to others: say to rowan "take lamp".',
-      'Also: look, inventory, score, wait, help.',
+      'Type commands in plain English. Try:',
+      '"take lamp", "light lamp", "go east", "break door with staff",',
+      '"kill goblin with staff", "tie rope to stump", "put plank across ravine",',
+      '"eat apple", "take all except the staff", "examine it".',
+      'Speak to others: say to rowan "take rope".',
+      'Also: look, inventory, score, wait, save, load, help.',
     ].join(' '));
   }
 

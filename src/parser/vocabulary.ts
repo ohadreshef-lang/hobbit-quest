@@ -36,12 +36,24 @@ export const VERBS: Record<string, string> = {
   remove: 'remove', doff: 'remove',
   give: 'give', offer: 'give',
   eat: 'eat',
+  light: 'light', kindle: 'light',
+  extinguish: 'extinguish', douse: 'extinguish',
+  break: 'break', smash: 'break', force: 'break',
+  tie: 'tie', fasten: 'tie', attach: 'tie',
+  kill: 'kill', attack: 'kill', fight: 'kill', hit: 'kill',
+  cross: 'cross',
   say: 'say', tell: 'say', ask: 'say',
-  go: 'go', walk: 'go', move: 'go',
+  go: 'go', walk: 'go', move: 'go', enter: 'go',
   inventory: 'inventory', i: 'inventory', inv: 'inventory',
   wait: 'wait', z: 'wait',
   score: 'score',
+  save: 'save', load: 'load', restore: 'load',
   help: 'help',
+};
+
+/** Special two-word verbs: "turn on lamp" -> light, "turn off" -> extinguish. */
+export const PHRASAL: Record<string, Record<string, string>> = {
+  turn: { on: 'light', off: 'extinguish' },
 };
 
 /** Special/meta commands that bypass the world (still valid verbs above). */
@@ -49,7 +61,7 @@ export const META_VERBS = new Set(['look', 'inventory', 'wait', 'score', 'help']
 
 export const PREPOSITIONS = new Set([
   'at', 'from', 'in', 'into', 'inside', 'off', 'on', 'onto',
-  'out', 'through', 'to', 'up', 'with',
+  'out', 'through', 'to', 'up', 'with', 'across',
 ]);
 
 /** Prepositions that mean "into a container" for PUT. */

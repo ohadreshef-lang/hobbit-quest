@@ -68,17 +68,33 @@ the same parser and simulation play a different game (spec §3, §18).
 
 ## Status & roadmap
 
-**Milestone 1 (parser playground) — done.** One lit room, an original-world
-cast of objects, two containers, and one commandable NPC, exercising every
-parser feature end to end: adjectives, pronouns (`it`/`them`), `ALL`/`EXCEPT`,
-multi-command input, ambiguity clarification, and `SAY TO <npc> "…"`. Backed
-by 20 parser + physics tests.
+**Milestone 1 (parser playground) — done.** Every parser feature end to end:
+adjectives, pronouns (`it`/`them`), `ALL`/`EXCEPT`, multi-command input,
+ambiguity clarification, and `SAY TO <npc> "…"`.
+
+**Milestone 2 (simulation vertical slice) — done.** A five-room journey
+(`hall → slope → cave → [barred door] → dark tunnel → [ravine] → ledge`) with:
+
+- **Darkness + light** — the tunnel is pitch dark; a lit lamp is required to
+  see *or interact* there.
+- **A breakable door** — forced open with a solid enough tool (durability vs
+  solidity).
+- **Combat + energy + food** — a goblin hunts you; `kill goblin with staff`,
+  `eat apple` to recover, death is possible.
+- **One obstacle, three valid solutions** — cross the ravine by tying the rope
+  to the outcrop, laying the plank across, *or* a friendly companion's help.
+  None is the "scripted" one; each is a physically valid world-state.
+- **A living world** — the companion and the goblin act on their own,
+  off-screen, and it persists.
+- **Seeded RNG + save/restore** — deterministic: same seed + commands replay to
+  an identical state hash, and a restored save reproduces the exact next random
+  events.
+
+Backed by **32 tests** (parser contract, physics, combat, determinism,
+save-fidelity, and all three ravine solutions).
 
 Next milestones (from the rebuild spec §21):
 
-- [ ] **M2** — simulation vertical slice: 5 rooms, darkness+light, rope/breakage,
-      food/energy, combat, one autonomous companion + one enemy, save/restore,
-      deterministic seeded replay, one obstacle with three valid solutions
 - [ ] **M3** — first journey region, day/night, score events, illustrations,
       Classic vs Guided modes
 - [ ] **M4** — the full world, endgame, and victory

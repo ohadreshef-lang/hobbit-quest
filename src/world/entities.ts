@@ -67,18 +67,24 @@ export function totalMass(state: GameState, id: string): number {
 export function isLit(state: GameState): boolean {
   const loc = currentLocation(state);
   if (loc.ambientLight >= LIGHT_THRESHOLD) return true;
-  // Any lit light-source in scope illuminates the room.
-  return scope(state).some((e) => e.states.has('lit') && (e.emitsLight ?? 0) > 0);
+  // A lit light-source you carry or that sits in the room illuminates it.
+  const near = [...contentsOf(state, PLAYER_ID), ...contentsOf(state, state.currentLocationId)];
+  return near.some((e) => e.states.has('lit') && (e.emitsLight ?? 0) > 0);
 }
 
 /**
  * Everything the player can currently refer to: what's in the room, what
  * they carry, and the exposed contents of open/transparent containers among
- * those — recursively. This is the resolver's search space.
+ * those — recursively. In the dark you can only refer to what you carry (and
+ * any lit thing), so light gates interaction, not just description (spec §9).
  */
 export function scope(state: GameState): Entity[] {
+  const lit = isLit(state);
+  const roomRoots = lit
+    ? contentsOf(state, state.currentLocationId)
+    : contentsOf(state, state.currentLocationId).filter((e) => e.states.has('lit'));
   const roots = [
-    ...contentsOf(state, state.currentLocationId),
+    ...roomRoots,
     ...contentsOf(state, PLAYER_ID),
   ];
   const out: Entity[] = [];

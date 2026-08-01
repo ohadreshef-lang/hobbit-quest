@@ -146,5 +146,7 @@ export function buildWorld(): GameState {
     flags: {},
     log: [],
     gameOver: false,
+    rngSeed: 0x0badf00d,
+    rngState: 0x0badf00d,
   };
 }

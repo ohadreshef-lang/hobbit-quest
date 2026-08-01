@@ -48,6 +48,10 @@ export function execute(state: GameState, action: import('../parser').SemanticAc
     case 'remove': return doRemove(state, actor, action.directObjectIds[0]);
     case 'give': return doGive(state, actor, action);
     case 'eat': return doEat(state, actor, action.directObjectIds[0]);
+    case 'light': return doLight(state, actor, action.directObjectIds[0], true);
+    case 'extinguish': return doLight(state, actor, action.directObjectIds[0], false);
+    case 'break': return doBreak(state, actor, action);
+    case 'tie': return doTie(state, actor, action);
     default:
       return fail('cant', `You can't do that here.`);
   }
@@ -90,6 +94,19 @@ function doDrop(state: GameState, actor: Entity, ids: string[]): ActionResult {
 }
 
 function doPut(state: GameState, actor: Entity, action: import('../parser').SemanticAction): ActionResult {
+  // "put plank across ravine" — bridge a gap with a solid object (spec §13).
+  if (action.preposition === 'across') {
+    const gap = entity(state, action.indirectObjectId ?? '');
+    if (!gap || !gap.capabilities.has('gap')) return fail('no-gap', 'There is nothing to bridge here.');
+    const span = entity(state, action.directObjectIds[0] ?? '');
+    if (!span) return fail('missing-object', 'Lay what across it?');
+    if (span.locationId !== actor.id && !isReachable(state, span.id)) return fail('not-held', `You don't have ${ev.name(span)}.`);
+    if (span.solidity < 5) return fail('too-flimsy', `${ev.Name(span)} is too flimsy to bear your weight.`);
+    span.locationId = gap.id;
+    if (gap.solveFlag) state.flags[gap.solveFlag] = true;
+    return ok(`You lay ${ev.name(span)} across ${ev.name(gap)}, making a rough bridge.`);
+  }
+
   const container = entity(state, action.indirectObjectId ?? '');
   if (!container) return fail('missing-container', 'Put it in what?');
   if (!container.capabilities.has('container')) return fail('not-container', `${ev.Name(container)} can't hold things.`);
@@ -198,6 +215,51 @@ function doEat(state: GameState, actor: Entity, id: string | undefined): ActionR
   e.locationId = null;
   if (actor.agent) actor.agent.energy = Math.min(100, actor.agent.energy + 15);
   return ok(`${ev.Name(actor)} eat${actor.id === PLAYER_ID ? '' : 's'} ${ev.name(e)}.`);
+}
+
+function doLight(state: GameState, _actor: Entity, id: string | undefined, on: boolean): ActionResult {
+  const e = entity(state, id ?? '');
+  if (!e) return fail('missing-object', `${on ? 'Light' : 'Put out'} what?`);
+  if (!(e.emitsLight && e.emitsLight > 0)) return fail('no-flame', `${ev.Name(e)} gives no light.`);
+  if (!isReachable(state, e.id)) return fail('unreachable', `You can't reach ${ev.name(e)}.`);
+  if (on && e.states.has('lit')) return fail('already', `${ev.Name(e)} is already lit.`);
+  if (!on && !e.states.has('lit')) return fail('already', `${ev.Name(e)} isn't lit.`);
+  if (on) e.states.add('lit'); else e.states.delete('lit');
+  return ok(`${ev.Name(e)} ${on ? 'flares to life' : 'goes dark'}.`);
+}
+
+function doBreak(state: GameState, actor: Entity, action: import('../parser').SemanticAction): ActionResult {
+  const target = entity(state, action.directObjectIds[0] ?? '');
+  if (!target) return fail('missing-object', 'Break what?');
+  if (target.agent) return fail('alive', `Try attacking ${ev.name(target)}, not breaking it.`);
+  if (!target.capabilities.has('breakable')) return fail('not-breakable', `${ev.Name(target)} won't break.`);
+  if (target.states.has('broken')) return fail('already', `${ev.Name(target)} is already broken.`);
+  // Prefer a named weapon; else the best solid tool the actor holds.
+  const tool = action.indirectObjectId
+    ? entity(state, action.indirectObjectId)
+    : carriedBy(state, actor.id).filter((t) => t.capabilities.has('weapon')).sort((a, b) => b.solidity - a.solidity)[0];
+  if (!tool) return fail('no-tool', `You have nothing solid enough to break ${ev.name(target)}.`);
+  if (tool.solidity < target.durability) {
+    return fail('too-weak', `${ev.Name(tool)} isn't strong enough to break ${ev.name(target)}.`);
+  }
+  target.states.add('broken');
+  if (target.capabilities.has('openable')) { target.states.add('open'); target.states.delete('closed'); }
+  if (target.solveFlag) state.flags[target.solveFlag] = true;
+  return ok(`${ev.Name(actor)} smash${actor.id === PLAYER_ID ? '' : 'es'} ${ev.name(target)} apart with ${ev.name(tool)}.`);
+}
+
+function doTie(state: GameState, actor: Entity, action: import('../parser').SemanticAction): ActionResult {
+  const rope = entity(state, action.directObjectIds[0] ?? '');
+  if (!rope) return fail('missing-object', 'Tie what?');
+  if (!rope.names.includes('rope')) return fail('not-rope', `You can't tie ${ev.name(rope)}.`);
+  if (rope.locationId !== actor.id) return fail('not-held', `You need to be holding ${ev.name(rope)}.`);
+  const anchor = entity(state, action.indirectObjectId ?? '');
+  if (!anchor) return fail('missing-anchor', `Tie ${ev.name(rope)} to what?`);
+  if (!anchor.capabilities.has('anchor')) return fail('not-anchor', `You can't tie ${ev.name(rope)} to ${ev.name(anchor)}.`);
+  rope.states.add('tied');
+  rope.locationId = anchor.id;
+  if (anchor.solveFlag) state.flags[anchor.solveFlag] = true;
+  return ok(`${ev.Name(actor)} tie${actor.id === PLAYER_ID ? '' : 's'} ${ev.name(rope)} securely to ${ev.name(anchor)}.`);
 }
 
 // Silence unused import in builds that tree-shake currentLocation elsewhere.

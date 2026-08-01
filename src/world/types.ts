@@ -51,6 +51,8 @@ export interface Entity {
   keyId?: string | undefined;
   emitsLight?: number | undefined;
   scoreEventId?: string | undefined;
+  /** Flag set when this entity is broken, tied to, or bridged (spec §13). */
+  solveFlag?: string | undefined;
   /** Present only for living, acting entities. */
   agent?: Agent | undefined;
   /** Prose shown on EXAMINE. */
@@ -72,7 +74,10 @@ export type Capability =
   | 'wearable'    // can be worn
   | 'readable'    // has text to read
   | 'weapon'      // usable to attack
-  | 'edible';     // can be eaten
+  | 'edible'      // can be eaten
+  | 'breakable'   // can be smashed with a solid tool
+  | 'anchor'      // a fixture a rope can be tied to
+  | 'gap';        // an obstacle a solid object can bridge
 
 /** Agency layered on top of an Entity (spec §11). */
 export interface Agent {
@@ -87,16 +92,27 @@ export interface Agent {
   behaviorIndex: number;
 }
 
+/** An exit that only opens once a world flag is set (spec §9 directed edges). */
+export interface GatedExit {
+  to: string;
+  /** Flag that must be truthy to pass. */
+  flag: string;
+  /** Shown when the way is still blocked. */
+  blocked: string;
+}
+
 /** A place. Locations form a directed graph; exits need not be symmetric. */
 export interface Location {
   id: string;
   title: string;
   description: string;
   exits: Partial<Record<Direction, string>>;
+  /** Exits gated behind a flag (a door to break, a ravine to bridge, …). */
+  gatedExits?: Partial<Record<Direction, GatedExit>> | undefined;
   /** Ambient light 0..1. < LIGHT_THRESHOLD reads as dark. */
   ambientLight: number;
   /** Optional key into the illustration table. */
-  art?: string;
+  art?: string | undefined;
 }
 
 export const PLAYER_ID = 'player';
@@ -119,6 +135,12 @@ export interface GameState {
   flags: Record<string, boolean | number>;
   log: LogLine[];
   gameOver: boolean;
+  /** 'win' | 'lose' once the tale ends; undefined while in play. */
+  outcome?: 'win' | 'lose' | undefined;
+  /** Seed the run was created with (recorded for replay). */
+  rngSeed: number;
+  /** Live generator state — mutated on each draw, saved verbatim. */
+  rngState: number;
   /** Parser reference memory (spec §8 reference resolution). */
   lastSingularId?: string | undefined;
   lastPluralIds?: string[] | undefined;

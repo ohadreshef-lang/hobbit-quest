@@ -7,7 +7,7 @@ import type { Direction } from '../world/types';
 import type { Token } from './lexer';
 import {
   ADVERBS, CONJUNCTIONS, DETERMINERS, DIRECTION_WORDS, EXCEPT_WORDS,
-  IN_PREPOSITIONS, PREPOSITIONS, PRONOUNS, QUANTIFIERS, VERBS,
+  IN_PREPOSITIONS, PHRASAL, PREPOSITIONS, PRONOUNS, QUANTIFIERS, VERBS,
 } from './vocabulary';
 
 /** A noun phrase, unresolved. */
@@ -70,12 +70,18 @@ export function parseClause(tokens: Token[]): Clause {
     return { verb: 'go', direction: DIRECTION_WORDS[first.value], raw };
   }
 
-  if (first.quoted || !(first.value in VERBS)) {
+  // Phrasal verbs: "turn on lamp" / "turn off lamp".
+  let verb: string;
+  let idx: number;
+  if (!first.quoted && first.value in PHRASAL && tokens[1] && PHRASAL[first.value][tokens[1].value]) {
+    verb = PHRASAL[first.value][tokens[1].value];
+    idx = 2;
+  } else if (first.quoted || !(first.value in VERBS)) {
     return { verb: 'unknown', unknownWord: first.value, raw };
+  } else {
+    verb = VERBS[first.value];
+    idx = 1;
   }
-
-  const verb = VERBS[first.value];
-  let idx = 1;
 
   // "pick up X" -> take X
   if (verb === 'take' && tokens[idx] && tokens[idx].value === 'up') idx++;
