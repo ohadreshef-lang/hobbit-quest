@@ -32,7 +32,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: 100vh;
+  /* Fill the viewport so the transcript scrolls INSIDE its box and the
+     illustration stays pinned in view (never scrolled off by autofocus). */
+  height: 100vh;
 }
 
 .topbar {
@@ -66,9 +68,8 @@ body {
 }
 
 .layout {
-  display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
 }
@@ -84,7 +85,11 @@ body {
 .scene {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .scene-art {
@@ -117,7 +122,8 @@ body {
 .log {
   flex: 1;
   overflow-y: auto;
-  min-height: 200px;
+  min-height: 0;
+  margin-top: 0.75rem;
   padding-right: 0.5rem;
   line-height: 1.55;
 }
