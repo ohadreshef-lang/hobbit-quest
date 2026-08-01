@@ -88,13 +88,17 @@ body {
 }
 
 .scene-art {
-  background: var(--panel-2);
+  background: #0c0a10;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  aspect-ratio: 2 / 1;
+  /* The classic ZX Spectrum screen ratio, 256 x 192. */
+  aspect-ratio: 4 / 3;
+  max-height: 340px;
+  margin: 0 auto;
   user-select: none;
   line-height: 0;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.55);
 }
 
 .scene-art svg {
