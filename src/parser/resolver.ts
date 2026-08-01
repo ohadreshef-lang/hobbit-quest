@@ -18,6 +18,8 @@ export interface SemanticAction {
   direction?: Direction | undefined;
   speech?: string | undefined;
   speechTargetId?: string | undefined;
+  /** A raw word argument for meta verbs like `mode guided`. */
+  arg?: string | undefined;
   raw: string;
 }
 
@@ -105,11 +107,12 @@ export function resolveClause(state: GameState, clause: Clause, actorId = PLAYER
 
   const base: SemanticAction = {
     actorId, verb: clause.verb, directObjectIds: [],
-    adverb: clause.adverb, direction: clause.direction, raw: clause.raw,
+    adverb: clause.adverb, direction: clause.direction,
+    arg: clause.directObject?.noun ?? clause.directObject?.adjectives[0], raw: clause.raw,
   };
 
   // Movement & meta verbs need no object.
-  if (['go', 'look', 'inventory', 'wait', 'score', 'help'].includes(clause.verb)) {
+  if (['go', 'look', 'inventory', 'wait', 'score', 'help', 'undo', 'hint', 'map', 'mode', 'save', 'load'].includes(clause.verb)) {
     return { ok: true, action: base };
   }
 

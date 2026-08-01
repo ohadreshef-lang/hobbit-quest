@@ -148,5 +148,8 @@ export function buildWorld(): GameState {
     gameOver: false,
     rngSeed: 0x0badf00d,
     rngState: 0x0badf00d,
+    mode: 'classic',
+    timeOfDay: 0,
+    discovered: new Set(),
   };
 }

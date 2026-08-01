@@ -49,6 +49,10 @@ export const VERBS: Record<string, string> = {
   score: 'score',
   save: 'save', load: 'load', restore: 'load',
   help: 'help',
+  mode: 'mode',
+  undo: 'undo',
+  hint: 'hint', hints: 'hint',
+  map: 'map',
 };
 
 /** Special two-word verbs: "turn on lamp" -> light, "turn off" -> extinguish. */

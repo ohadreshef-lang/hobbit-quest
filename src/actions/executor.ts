@@ -7,7 +7,7 @@
 import type { Entity, GameState, LogLine } from '../world/types';
 import { PLAYER_ID } from '../world/types';
 import {
-  carriedBy, contentsOf, currentLocation, entity, isOpen, isReachable, totalMass,
+  carriedBy, contentsOf, currentLocation, entity, isNight, isOpen, isReachable, totalMass,
 } from '../world/entities';
 import * as ev from '../narration/events';
 
@@ -43,7 +43,7 @@ export function execute(state: GameState, action: import('../parser').SemanticAc
     case 'lock': return doLock(state, actor, action.directObjectIds[0], true);
     case 'unlock': return doLock(state, actor, action.directObjectIds[0], false);
     case 'examine': return doExamine(state, action.directObjectIds[0]);
-    case 'read': return doRead(state, action.directObjectIds[0]);
+    case 'read': return doRead(state, actor, action.directObjectIds[0]);
     case 'wear': return doWear(state, actor, action.directObjectIds[0]);
     case 'remove': return doRemove(state, actor, action.directObjectIds[0]);
     case 'give': return doGive(state, actor, action);
@@ -171,10 +171,28 @@ function doExamine(state: GameState, id: string | undefined): ActionResult {
   return { success: true, turnsConsumed: 0, lines: [line('action', parts.join(' '))] };
 }
 
-function doRead(state: GameState, id: string | undefined): ActionResult {
+function doRead(state: GameState, actor: Entity, id: string | undefined): ActionResult {
   const e = entity(state, id ?? '');
   if (!e) return fail('missing-object', 'Read what?');
   if (!e.capabilities.has('readable')) return fail('not-readable', `There's nothing to read on ${ev.name(e)}.`);
+
+  // A runic map yields its hidden route only to a reader who knows the runes,
+  // and only by moonlight (spec §13 map-reading; §10 day/night).
+  if (e.states.has('runic')) {
+    const knows = actor.agent?.knowledge.has('runes') ?? false;
+    if (knows && isNight(state)) {
+      state.flags['map-read'] = true;
+      return { success: true, turnsConsumed: 1, lines: [line('action',
+        `By moonlight the hidden runes on ${ev.name(e)} glimmer into view. ${ev.Name(actor)} traces a secret path east, over the shoulder of the mountains to a hidden vale.`)] };
+    }
+    if (knows) {
+      return { success: true, turnsConsumed: 0, lines: [line('action',
+        `${ev.Name(actor)} squints at ${ev.name(e)}. "There are moon-runes here — but they show only under a night sky. Come back by moonlight."`)] };
+    }
+    return { success: true, turnsConsumed: 0, lines: [line('action',
+      `${ev.Name(e)} shows worn ink and a faint tracery you cannot read. Someone wiser might make more of it.`)] };
+  }
+
   return { success: true, turnsConsumed: 0, lines: [line('action', e.description ?? `${ev.Name(e)} is blank.`)] };
 }
 

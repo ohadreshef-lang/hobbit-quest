@@ -5,7 +5,12 @@
  * its contents implicitly, since they still point at the container.
  */
 import type { Entity, GameState, Location } from './types';
-import { LIGHT_THRESHOLD, PLAYER_ID } from './types';
+import { DAY_LENGTH, LIGHT_THRESHOLD, PLAYER_ID } from './types';
+
+/** Night is the back half of the day cycle (spec §10 day/night). */
+export function isNight(state: GameState): boolean {
+  return state.timeOfDay >= DAY_LENGTH / 2;
+}
 
 export function entity(state: GameState, id: string): Entity | undefined {
   return state.entities[id];
@@ -66,7 +71,9 @@ export function totalMass(state: GameState, id: string): number {
 /** Whether the current location is lit enough for the player to see. */
 export function isLit(state: GameState): boolean {
   const loc = currentLocation(state);
-  if (loc.ambientLight >= LIGHT_THRESHOLD) return true;
+  // Outdoor places fall dark at night.
+  const ambient = loc.outdoor && isNight(state) ? 0 : loc.ambientLight;
+  if (ambient >= LIGHT_THRESHOLD) return true;
   // A lit light-source you carry or that sits in the room illuminates it.
   const near = [...contentsOf(state, PLAYER_ID), ...contentsOf(state, state.currentLocationId)];
   return near.some((e) => e.states.has('lit') && (e.emitsLight ?? 0) > 0);

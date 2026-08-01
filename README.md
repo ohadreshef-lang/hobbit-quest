@@ -90,13 +90,27 @@ ambiguity clarification, and `SAY TO <npc> "…"`.
   an identical state hash, and a restored save reproduces the exact next random
   events.
 
-Backed by **32 tests** (parser contract, physics, combat, determinism,
-save-fidelity, and all three ravine solutions).
+**Milestone 3 (first journey region) — done.** An eight-room original-world
+region — `hollow → lane → ford → wildwood → stones → pass → haven` (with a
+side dell) — adding the story systems:
+
+- **Day / night cycle** — time advances each turn; outdoor places fall dark at
+  night, so travelling after dusk needs a carried, lit lamp.
+- **The runic map** — a map whose hidden route only appears when read by
+  someone who knows the runes, **and only by moonlight**: reach the haven,
+  wait for night, then `say to sage "read map"`.
+- **Score events** — progress rises in 2.5% steps on discoveries and key
+  locations; `score` reports it.
+- **New illustrations** — ford, wildwood, high pass, and the lamplit haven.
+- **Classic vs Guided modes** — same simulation, different scaffolding.
+  Guided unlocks `undo`, tiered `hint`, and a discovered-locations `map`;
+  Classic refuses them and stays terse. `mode guided` / `mode classic`.
+
+Backed by **42 tests** across the parser, physics, combat, determinism,
+save-fidelity, day/night, map-reading, scoring, and the mode features.
 
 Next milestones (from the rebuild spec §21):
 
-- [ ] **M3** — first journey region, day/night, score events, illustrations,
-      Classic vs Guided modes
 - [ ] **M4** — the full world, endgame, and victory
 - [ ] **M5** — emergence testing (10k seeded runs), accessibility, save migrations
 ```

@@ -150,5 +150,6 @@ export function buildWorld(): GameState {
     currentLocationId: 'hall',
     turn: 0, score: 0, scoredEvents: new Set(), flags: {}, log: [],
     gameOver: false, rngSeed: seed, rngState: seed,
+    mode: 'classic', timeOfDay: 0, discovered: new Set(),
   };
 }

@@ -97,6 +97,61 @@ const ART: Record<string, string> = {
     <path d="M210 198 q-18 -22 -2 -48 q4 16 12 22 q0 -18 8 -28 q2 26 10 34 q6 12 0 22 z" fill="#f4b13a"/>
     <path d="M208 196 q-8 -14 0 -30 q6 12 4 30 z" fill="#ffe58c"/>
     <rect x="176" y="198" width="70" height="8" rx="3" fill="#3a2a1a"/>`),
+
+  // A stony ford: a river over flat stones under a bright sky.
+  ford: scene('ford', ['#8fb8d6', '#5b7fa0'], `
+    <path d="M0 120 Q240 96 480 120 L480 160 L0 160 Z" fill="#3f6d4a"/>
+    <rect y="150" width="480" height="90" fill="#4a7fa6"/>
+    <g stroke="#bcd8ea" stroke-width="3" opacity="0.7" fill="none">
+      <path d="M20 176 q40 -6 80 0 t80 0"/>
+      <path d="M240 196 q40 -6 80 0 t120 0"/>
+      <path d="M60 214 q40 -6 80 0 t80 0"/>
+    </g>
+    <g fill="#9a9186">
+      <ellipse cx="140" cy="182" rx="26" ry="10"/>
+      <ellipse cx="240" cy="200" rx="30" ry="11"/>
+      <ellipse cx="340" cy="184" rx="24" ry="9"/>
+    </g>`),
+
+  // The wildwood: crowded dark trunks and a narrow path.
+  wood: scene('wood', ['#2c3a28', '#141d14'], `
+    <path d="M0 180 Q240 156 480 180 L480 240 L0 240 Z" fill="#1a2716"/>
+    <g fill="#20301c">
+      <path d="M40 240 q10 -140 20 -160 q10 20 20 160 z"/>
+      <path d="M150 240 q8 -170 18 -190 q10 20 18 190 z"/>
+      <path d="M300 240 q8 -150 18 -172 q10 22 18 172 z"/>
+      <path d="M420 240 q8 -160 16 -180 q8 20 16 180 z"/>
+    </g>
+    <path d="M230 240 Q250 190 244 150" fill="none" stroke="#3a4a30" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="250" cy="70" r="18" fill="#cfe0b0" opacity="0.25"/>`),
+
+  // The high pass: cold grey peaks against a thin sky.
+  pass: scene('pass', ['#b8c4d0', '#6b7788'], `
+    <path d="M0 200 L120 70 L200 150 L300 40 L400 160 L480 90 L480 240 L0 240 Z" fill="#5c6675"/>
+    <path d="M0 220 L110 120 L210 200 L320 110 L440 210 L480 170 L480 240 L0 240 Z" fill="#454e5b"/>
+    <g fill="#eef2f6">
+      <path d="M120 70 l24 40 l-48 0 z"/>
+      <path d="M300 40 l26 44 l-52 0 z"/>
+    </g>
+    <path d="M170 240 Q250 190 250 150 Q250 120 300 108" fill="none" stroke="#8f99a6" stroke-width="12" stroke-linecap="round" opacity="0.7"/>`),
+
+  // The hidden haven: lamplit halls and a waterfall under stars.
+  haven: scene('haven', ['#1b2340', '#0e1326'], `
+    <g fill="#eaf0ff">
+      <circle cx="70" cy="46" r="1.6"/><circle cx="150" cy="30" r="1.4"/>
+      <circle cx="250" cy="52" r="1.8"/><circle cx="360" cy="34" r="1.4"/>
+      <circle cx="430" cy="60" r="1.6"/><circle cx="200" cy="70" r="1.2"/>
+    </g>
+    <path d="M0 150 Q240 118 480 150 L480 240 L0 240 Z" fill="#20305a"/>
+    <path d="M0 190 Q240 160 480 190 L480 240 L0 240 Z" fill="#152343"/>
+    <rect x="300" y="60" width="10" height="150" fill="#bcd6f0" opacity="0.55"/>
+    <g fill="#f2c14e">
+      <rect x="110" y="150" width="10" height="16" rx="2"/>
+      <rect x="150" y="146" width="10" height="20" rx="2"/>
+      <rect x="196" y="150" width="10" height="16" rx="2"/>
+    </g>
+    <circle cx="130" cy="140" r="8" fill="#f6d27a" opacity="0.7"/>
+    <circle cx="176" cy="136" r="9" fill="#f6d27a" opacity="0.7"/>`),
 };
 
 // Parchment-map fallback for any unmapped / missing art key.

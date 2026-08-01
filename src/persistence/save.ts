@@ -33,6 +33,8 @@ export function hashState(state: GameState): string {
     turn: state.turn,
     score: state.score,
     rng: state.rngState,
+    time: state.timeOfDay,
+    mode: state.mode,
     outcome: state.outcome ?? null,
     flags: Object.keys(state.flags).sort().map((k) => [k, state.flags[k]]),
     entities: Object.keys(state.entities).sort().map((id) => {

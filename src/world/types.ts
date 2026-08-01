@@ -64,7 +64,7 @@ export type EntityState =
   | 'broken' | 'lit' | 'worn'
   | 'tied' | 'transparent' | 'opaque'
   | 'liquid' | 'edible' | 'alive' | 'dead'
-  | 'fixed';
+  | 'fixed' | 'runic';
 
 export type Capability =
   | 'takeable'    // can be picked up
@@ -111,9 +111,16 @@ export interface Location {
   gatedExits?: Partial<Record<Direction, GatedExit>> | undefined;
   /** Ambient light 0..1. < LIGHT_THRESHOLD reads as dark. */
   ambientLight: number;
+  /** Outdoor places go dark at night unless the player carries a light. */
+  outdoor?: boolean | undefined;
   /** Optional key into the illustration table. */
   art?: string | undefined;
 }
+
+export type Mode = 'classic' | 'guided';
+
+/** Length of a full day in turns; the back half is night. */
+export const DAY_LENGTH = 10;
 
 export const PLAYER_ID = 'player';
 export const LIGHT_THRESHOLD = 0.3;
@@ -141,6 +148,12 @@ export interface GameState {
   rngSeed: number;
   /** Live generator state — mutated on each draw, saved verbatim. */
   rngState: number;
+  /** Classic (fragile, terse) vs Guided (undo/hints/map). */
+  mode: Mode;
+  /** Turns since dawn, wrapping at DAY_LENGTH; back half is night. */
+  timeOfDay: number;
+  /** Locations the player has visited (for the Guided-mode map). */
+  discovered: Set<string>;
   /** Parser reference memory (spec §8 reference resolution). */
   lastSingularId?: string | undefined;
   lastPluralIds?: string[] | undefined;

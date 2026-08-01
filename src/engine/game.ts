@@ -7,15 +7,16 @@
 import type { GameState, LogLine } from '../world/types';
 import { PLAYER_ID } from '../world/types';
 import {
-  carriedBy, contentsOf, currentLocation, entity,
+  carriedBy, contentsOf, currentLocation, entity, isNight,
 } from '../world/entities';
+import { DAY_LENGTH } from '../world/types';
 import { parse, resolveClause } from '../parser';
 import type { Ambiguity, Clause, ResolveFailure, SemanticAction } from '../parser';
 import { execute } from '../actions/executor';
 import { strike } from '../actions/combat';
 import { describeLocation } from '../narration/describe';
 import { name, Name } from '../narration/events';
-import { buildWorld } from '../content/m2';
+import { buildWorld } from '../content/m3';
 import { serialize, deserialize } from '../persistence/save';
 import { DIRECTIONS } from '../world/types';
 import { randInt } from '../world/rng';
@@ -29,9 +30,12 @@ interface Pending {
 export class Game {
   state: GameState;
   private pending: Pending | undefined;
+  /** Serialized snapshots for Guided-mode undo (spec §16). */
+  private undoStack: string[] = [];
 
   constructor(build: () => GameState = buildWorld) {
     this.state = build();
+    this.state.discovered.add(this.state.currentLocationId);
     this.state.log.push(...describeLocation(this.state));
   }
 
@@ -50,9 +54,17 @@ export class Game {
       return this.record(out);
     }
 
+    // Snapshot before applying, so Guided-mode undo can step back a move.
+    if (!/^\s*undo\b/i.test(input)) this.pushUndo();
+
     const clauses = parse(input);
     out.push(...this.runClauses(clauses));
     return this.record(out);
+  }
+
+  private pushUndo(): void {
+    this.undoStack.push(serialize(this.state));
+    if (this.undoStack.length > 25) this.undoStack.shift();
   }
 
   private runClauses(clauses: Clause[]): LogLine[] {
@@ -96,6 +108,10 @@ export class Game {
       case 'kill': return this.doKill(action);
       case 'save': return [this.doSave()];
       case 'load': return [this.doLoad()];
+      case 'mode': return [this.doMode(action)];
+      case 'undo': return [this.doUndo()];
+      case 'hint': return [this.doHint()];
+      case 'map': return [this.doMap()];
       default: {
         const result = execute(this.state, action);
         return this.tick(result.lines, result.turnsConsumed > 0);
@@ -153,6 +169,7 @@ export class Game {
     }
 
     this.state.currentLocationId = dest;
+    this.state.discovered.add(dest);
     this.awardLocation(dest);
     return this.tick([...pre, ...describeLocation(this.state)], true);
   }
@@ -231,9 +248,28 @@ export class Game {
   private tick(lines: LogLine[], tookTurn: boolean): LogLine[] {
     if (!tookTurn) return lines;
     this.state.turn += 1;
+
+    const wasNight = isNight(this.state);
+    this.state.timeOfDay = (this.state.timeOfDay + 1) % DAY_LENGTH;
+    const daynight: LogLine[] = [];
+    if (isNight(this.state) && !wasNight) daynight.push(event('The sun sets; night falls over the land.'));
+    else if (!isNight(this.state) && wasNight) daynight.push(event('Dawn breaks, pale and cold.'));
+
     const npc = this.tickNpcs();
+    const story = this.checkStory();
     const end = this.checkEnd();
-    return [...lines, ...npc, ...end];
+    return [...lines, ...daynight, ...npc, ...story, ...end];
+  }
+
+  /** Award progress for story discoveries in 2.5% steps (spec §5). */
+  private checkStory(): LogLine[] {
+    const out: LogLine[] = [];
+    if (this.state.flags['map-read'] && !this.state.scoredEvents.has('map-read')) {
+      this.state.scoredEvents.add('map-read');
+      this.state.score = Math.min(100, this.state.score + 2.5);
+      out.push(sys('(You have uncovered the hidden path. +2.5%)'));
+    }
+    return out;
   }
 
   /**
@@ -302,6 +338,47 @@ export class Game {
     } catch { return err('That save could not be read.'); }
   }
 
+  private doMode(action: SemanticAction): LogLine {
+    const arg = action.arg;
+    if (arg === 'guided' || arg === 'classic') {
+      this.state.mode = arg;
+      return sys(arg === 'guided'
+        ? 'Guided mode: undo, hints, and a travel map are available.'
+        : 'Classic mode: terse, fragile, and unforgiving — as it was.');
+    }
+    return sys(`Mode is ${this.state.mode}. Switch with "mode guided" or "mode classic".`);
+  }
+
+  private doUndo(): LogLine {
+    if (this.state.mode !== 'guided') return err('Undo is only available in Guided mode (try: mode guided).');
+    const snap = this.undoStack.pop();
+    if (!snap) return err('There is nothing to undo.');
+    this.state = deserialize(snap);
+    return sys('You take back your last move.');
+  }
+
+  private doHint(): LogLine {
+    if (this.state.mode !== 'guided') return err('Hints are only available in Guided mode (try: mode guided).');
+    const s = this.state;
+    const carryingMap = contentsOf(s, PLAYER_ID).some((e) => e.states.has('runic'));
+    const atHaven = s.currentLocationId === 'haven';
+    if (!s.flags['map-read']) {
+      if (atHaven && !isNight(s)) return sys('Hint: the sage can read your map — but moon-runes only show at night. Wait for nightfall, then: say to sage "read map".');
+      if (atHaven && isNight(s)) return sys('Hint: it is night and the sage is here. Ask them to read the map: say to sage "read map".');
+      if (!carryingMap) return sys('Hint: that old map matters. Make sure you are carrying it before you travel on.');
+      return sys('Hint: seek out someone wise enough to read the map — follow the road east toward the haven.');
+    }
+    return sys('Hint: the hidden path east is open to you now. Press on.');
+  }
+
+  private doMap(): LogLine {
+    if (this.state.mode !== 'guided') return err('You keep no map of your travels in Classic mode (try: mode guided).');
+    const visited = [...this.state.discovered]
+      .map((id) => this.state.locations[id]?.title)
+      .filter(Boolean);
+    return sys(`Places you have seen: ${visited.join(' · ')}.`);
+  }
+
   private awardLocation(locId: string): void {
     const loc = this.state.locations[locId];
     const evId = `enter:${locId}`;
@@ -323,11 +400,11 @@ export class Game {
   private helpText(): LogLine {
     return sys([
       'Type commands in plain English. Try:',
-      '"take lamp", "light lamp", "go east", "break door with staff",',
-      '"kill goblin with staff", "tie rope to stump", "put plank across ravine",',
-      '"eat apple", "take all except the staff", "examine it".',
-      'Speak to others: say to rowan "take rope".',
-      'Also: look, inventory, score, wait, save, load, help.',
+      '"take map", "take lamp", "go east", "light lamp", "read map",',
+      '"kill wolf with staff", "eat apple", "wait" (to pass time).',
+      'Speak to others: say to sage "read map".',
+      'Also: look, inventory, score, wait, save, load, help,',
+      'and "mode guided" to unlock undo, hint, and map.',
     ].join(' '));
   }
 

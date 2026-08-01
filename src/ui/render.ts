@@ -3,7 +3,7 @@
  * atmospheric (spec §7). A full re-render each turn is cheap for a text game.
  */
 import type { GameState, LogLine } from '../world/types';
-import { currentLocation } from '../world/entities';
+import { currentLocation, isNight } from '../world/entities';
 import { artFor } from './art';
 
 export interface UIElements {
@@ -30,7 +30,9 @@ export function grabElements(): UIElements {
 export function render(el: UIElements, state: GameState): void {
   const loc = currentLocation(state);
   el.title.textContent = loc.title;
-  el.score.textContent = `Score ${state.score}%`;
+  const tod = isNight(state) ? '☾ Night' : '☀ Day';
+  const mode = state.mode === 'guided' ? 'Guided' : 'Classic';
+  el.score.textContent = `Score ${state.score}% · ${tod} · ${mode}`;
   // artFor returns author-authored inline SVG (never user input).
   el.sceneArt.innerHTML = artFor(loc.art);
 
