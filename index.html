@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A modern web port of the classic 1982 text adventure, The Hobbit."
+    />
+    <title>The Hobbit — Quest</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <h1>The Hobbit</h1>
+        <span class="subtitle">a text adventure, reforged</span>
+      </header>
+      <main class="layout">
+        <section class="scene" aria-label="Current location">
+          <div id="scene-art" class="scene-art" aria-hidden="true"></div>
+          <h2 id="room-name" class="room-name"></h2>
+          <div id="log" class="log" role="log" aria-live="polite"></div>
+          <div id="exits" class="exits" aria-label="Available exits"></div>
+        </section>
+        <aside class="sidebar" aria-label="Inventory and objects">
+          <h3>You are carrying</h3>
+          <ul id="inventory" class="inventory"></ul>
+          <h3>You can see</h3>
+          <ul id="room-items" class="room-items"></ul>
+        </aside>
+      </main>
+      <form id="command-form" class="command-bar" autocomplete="off">
+        <span class="prompt-glyph" aria-hidden="true">&gt;</span>
+        <input
+          id="command-input"
+          class="command-input"
+          type="text"
+          name="command"
+          placeholder="Type a command, e.g. 'go west' or 'take rope'"
+          aria-label="Command input"
+          autofocus
+        />
+        <button type="submit" class="command-submit">Enter</button>
+      </form>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
